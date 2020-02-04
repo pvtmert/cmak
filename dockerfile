@@ -16,18 +16,18 @@ RUN sbt exit
 
 WORKDIR /data
 COPY ./ ./
-RUN sbt clean package
-RUN sbt 'set test in assembly := {}' assembly
+RUN sbt clean dist
 
 FROM centos:7
-
 RUN curl -#Lo jdk.rpm https://src.n0pe.me/~mert/jdk/jdk8.linux.x64.rpm \
 	&& yum install -y jdk.rpm \
 	&& rm -rf jdk.rpm
 
+RUN yum install -y unzip
 WORKDIR /app
-COPY --from=build /data/conf ./
-COPY --from=build /data/target/scala-*/*.jar ./
-ENTRYPOINT [ "java", "-jar", "kafka-manager-assembly-2.0.0.2.jar" ]
+COPY --from=build /data/target/universal/kafka-manager-*.zip ./
+RUN unzip ./kafka-manager-*.zip
+RUN ln -sf ./kafka-manager-*/ kafka-manager
+ENV PATH "${PATH}:/app/kafka-manager/bin"
+ENTRYPOINT [ "kafka-manager" ]
 CMD        [ ]
-#kafka-manager_2.12-2.0.0.2.jar

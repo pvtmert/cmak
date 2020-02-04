@@ -26,6 +26,7 @@ RUN curl -#Lo jdk.rpm https://src.n0pe.me/~mert/jdk/jdk8.linux.x64.rpm \
 	&& rm -rf jdk.rpm
 
 WORKDIR /app
+COPY --from=build /data/conf ./
 COPY --from=build /data/target/scala-*/*.jar ./
 ENTRYPOINT [ "java", "-jar", "kafka-manager-assembly-2.0.0.2.jar" ]
 CMD        [ ]

@@ -8,18 +8,17 @@ package kafka.manager.model
 import java.util.Properties
 
 import grizzled.slf4j.Logging
-import kafka.common.TopicAndPartition
 import kafka.manager.jmx._
 import kafka.manager.utils
-import kafka.manager.utils.one10.MemberMetadata
+import kafka.manager.utils.two40.MemberMetadata
 import kafka.manager.utils.zero81.ForceReassignmentCommand
-import org.apache.kafka.common.requests.DescribeGroupsResponse
+import org.apache.kafka.common.TopicPartition
 import org.joda.time.DateTime
 
 import scala.collection.immutable.Queue
-import scala.concurrent.{Await, Future}
-import scala.util.{Failure, Success, Try}
+import scala.util.Try
 import scalaz.{NonEmptyList, Validation}
+
 import scala.collection.immutable.Map
 
 /**
@@ -89,6 +88,7 @@ object ActorModel {
   case class CMUpdateTopicConfig(topic: String, config: Properties, readVersion: Int) extends CommandRequest
   case class CMDeleteTopic(topic: String) extends CommandRequest
   case class CMRunPreferredLeaderElection(topics: Set[String]) extends CommandRequest
+  case class CMSchedulePreferredLeaderElection(schedule: Map[String, Int]) extends CommandRequest
   case class CMRunReassignPartition(topics: Set[String], forceSet: Set[ForceReassignmentCommand]) extends CommandRequest
   case class CMGeneratePartitionAssignments(topics: Set[String], brokers: Set[Int], replicationFactor: Option[Int] = None) extends CommandRequest
   case class CMManualPartitionAssignments(assignments: List[(String, List[(Int, List[Int])])]) extends CommandRequest
@@ -128,7 +128,7 @@ object ActorModel {
                                            readVersions: Map[String, Int]) extends CommandRequest
   case class KCUpdateTopicConfig(topic: String, config: Properties, readVersion: Int) extends CommandRequest
   case class KCDeleteTopic(topic: String) extends CommandRequest
-  case class KCPreferredReplicaLeaderElection(topicAndPartition: Set[TopicAndPartition]) extends CommandRequest
+  case class KCPreferredReplicaLeaderElection(topicAndPartition: Set[TopicPartition]) extends CommandRequest
   case class KCReassignPartition(currentTopicIdentity: Map[String, TopicIdentity]
                                  , generatedTopicIdentity: Map[String, TopicIdentity]
                                  , forceSet: Set[ForceReassignmentCommand]) extends CommandRequest
@@ -169,6 +169,7 @@ object ActorModel {
   case object KSGetTopicsLastUpdateMillis extends KSRequest
   case object KSGetPreferredLeaderElection extends KSRequest
   case object KSGetReassignPartition extends KSRequest
+  case object KSGetScheduleLeaderElection extends KSRequest
   case class KSEndPreferredLeaderElection(millis: Long) extends CommandRequest
   case class KSUpdatePreferredLeaderElection(millis: Long, json: String) extends CommandRequest
   case class KSEndReassignPartition(millis: Long) extends CommandRequest
@@ -207,13 +208,17 @@ object ActorModel {
   case class BrokerList(list: IndexedSeq[BrokerIdentity], clusterContext: ClusterContext) extends QueryResponse
 
   case class PreferredReplicaElection(startTime: DateTime, 
-                                      topicAndPartition: Set[TopicAndPartition], 
+                                      topicAndPartition: Set[TopicPartition],
                                       endTime: Option[DateTime], 
-                                      clusterContext: ClusterContext) extends QueryResponse
+                                      clusterContext: ClusterContext) extends QueryResponse {
+    def sortedTopicPartitionList: List[(String, Int)] = topicAndPartition.toList.map(tp => (tp.topic(), tp.partition())).sortBy(_._1)
+  }
   case class ReassignPartitions(startTime: DateTime, 
-                                partitionsToBeReassigned: Map[TopicAndPartition, Seq[Int]], 
+                                partitionsToBeReassigned: Map[TopicPartition, Seq[Int]],
                                 endTime: Option[DateTime], 
-                                clusterContext: ClusterContext) extends QueryResponse
+                                clusterContext: ClusterContext) extends QueryResponse {
+    def sortedTopicPartitionAssignmentList : List[((String, Int), Seq[Int])] = partitionsToBeReassigned.toList.sortBy(partition => (partition._1.topic(), partition._1.partition())).map { case (tp, a) => ((tp.topic(), tp.partition()), a)}
+  }
 
   case class ConsumedTopicDescription(consumer: String,
                                       topic: String,

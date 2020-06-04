@@ -67,7 +67,7 @@ Requirements
 ------------
 
 1. [Kafka 0.8.*.* or 0.9.*.* or 0.10.*.* or 0.11.*.*](http://kafka.apache.org/downloads.html)
-2. Java 8+
+2. Java 11+
 
 Configuration
 -------------
@@ -76,11 +76,11 @@ The minimum configuration is the zookeeper hosts which are to be used for CMAK (
 This can be found in the application.conf file in conf directory.  The same file will be packaged
 in the distribution zip file; you may modify settings after unzipping the file on the desired server.
 
-    kafka-manager.zkhosts="my.zookeeper.host.com:2181"
+    cmak.zkhosts="my.zookeeper.host.com:2181"
 
 You can specify multiple zookeeper hosts by comma delimiting them, like so:
 
-    kafka-manager.zkhosts="my.zookeeper.host.com:2181,other.zookeeper.host.com:2181"
+    cmak.zkhosts="my.zookeeper.host.com:2181,other.zookeeper.host.com:2181"
 
 Alternatively, use the environment variable `ZK_HOSTS` if you don't want to hardcode any values.
 
@@ -97,22 +97,22 @@ You can optionally enable/disable the following functionality by modifying the d
 
 Consider setting these parameters for larger clusters with jmx enabled :
 
- - kafka-manager.broker-view-thread-pool-size=< 3 * number_of_brokers>
- - kafka-manager.broker-view-max-queue-size=< 3 * total # of partitions across all topics>
- - kafka-manager.broker-view-update-seconds=< kafka-manager.broker-view-max-queue-size / (10 * number_of_brokers) >
+ - cmak.broker-view-thread-pool-size=< 3 * number_of_brokers>
+ - cmak.broker-view-max-queue-size=< 3 * total # of partitions across all topics>
+ - cmak.broker-view-update-seconds=< cmak.broker-view-max-queue-size / (10 * number_of_brokers) >
 
 Here is an example for a kafka cluster with 10 brokers, 100 topics, with each topic having 10 partitions giving 1000 total partitions with JMX enabled :
 
- - kafka-manager.broker-view-thread-pool-size=30
- - kafka-manager.broker-view-max-queue-size=3000
- - kafka-manager.broker-view-update-seconds=30
+ - cmak.broker-view-thread-pool-size=30
+ - cmak.broker-view-max-queue-size=3000
+ - cmak.broker-view-update-seconds=30
 
 The follow control consumer offset cache's thread pool and queue :
 
- - kafka-manager.offset-cache-thread-pool-size=< default is # of processors>
- - kafka-manager.offset-cache-max-queue-size=< default is 1000>
- - kafka-manager.kafka-admin-client-thread-pool-size=< default is # of processors>
- - kafka-manager.kafka-admin-client-max-queue-size=< default is 1000>
+ - cmak.offset-cache-thread-pool-size=< default is # of processors>
+ - cmak.offset-cache-max-queue-size=< default is 1000>
+ - cmak.kafka-admin-client-thread-pool-size=< default is # of processors>
+ - cmak.kafka-admin-client-max-queue-size=< default is 1000>
 
 You should increase the above for large # of consumers with consumer polling enabled.  Though it mainly affects ZK based consumer polling.
 
@@ -172,15 +172,15 @@ The command below will create a zip file which can be used to deploy the applica
 Please refer to play framework documentation on [production deployment/configuration](https://www.playframework.com/documentation/2.4.x/ProductionConfiguration).
 
 If java is not in your path, or you need to build against a specific java version,
-please use the following (the example assumes oracle java8):
+please use the following (the example assumes zulu java11):
 
-    $ PATH=/usr/local/oracle-java-8/bin:$PATH \
-      JAVA_HOME=/usr/local/oracle-java-8 \
-      /path/to/sbt -java-home /usr/local/oracle-java-8 clean dist
+    $ PATH=/usr/lib/jvm/zulu-11-amd64/bin:$PATH \
+      JAVA_HOME=/usr/lib/jvm/zulu-11-amd64 \
+      /path/to/sbt -java-home /usr/lib/jvm/zulu-11-amd64 clean dist
 
 This ensures that the 'java' and 'javac' binaries in your path are first looked up in the
-oracle java8 release. Next, for all downstream tools that only listen to JAVA_HOME, it points
-them to the oracle java8 location. Lastly, it tells sbt to use the oracle java8 location as
+correct location. Next, for all downstream tools that only listen to JAVA_HOME, it points
+them to the java11 location. Lastly, it tells sbt to use the java11 location as
 well.
 
 Starting the service
@@ -189,24 +189,24 @@ Starting the service
 After extracting the produced zipfile, and changing the working directory to it, you can
 run the service like this:
 
-    $ bin/kafka-manager
+    $ bin/cmak
 
 By default, it will choose port 9000. This is overridable, as is the location of the
 configuration file. For example:
 
-    $ bin/kafka-manager -Dconfig.file=/path/to/application.conf -Dhttp.port=8080
+    $ bin/cmak -Dconfig.file=/path/to/application.conf -Dhttp.port=8080
 
 Again, if java is not in your path, or you need to run against a different version of java,
 add the -java-home option as follows:
 
-    $ bin/kafka-manager -java-home /usr/local/oracle-java-8
+    $ bin/cmak -java-home /usr/lib/jvm/zulu-11-amd64
 
 Starting the service with Security
 ----------------------------------
 
 To add JAAS configuration for SASL, add the config file location at start:
 
-    $ bin/kafka-manager -Djava.security.auth.login.config=/path/to/my-jaas.conf
+    $ bin/cmak -Djava.security.auth.login.config=/path/to/my-jaas.conf
 
 NOTE: Make sure the user running CMAK (pka kafka manager) has read permissions on the jaas config file
 
@@ -223,8 +223,6 @@ If you'd like to create a Debian or RPM package instead, you can run one of:
 Credits
 -------
 
-Logo/favicon used is from [Apache Kafka](http://kafka.apache.org) project and a registered trademark of the Apache Software Foundation.
-
 Most of the utils code has been adapted to work with [Apache Curator](http://curator.apache.org) from [Apache Kafka](http://kafka.apache.org).
 
 Name and Management
@@ -236,3 +234,15 @@ License
 -------
 
 Licensed under the terms of the Apache License 2.0. See accompanying LICENSE file for terms.
+
+Consumer/Producer Lag
+-------
+
+Producer offset is polled.  Consumer offset is read from the offset topic for Kafka based consumers.  This means the reported lag may be negative since we are consuming offset from the offset topic faster then polling the producer offset.  This is normal and not a problem.
+
+Migration from Kafka Manager to CMAK
+-------
+
+1. Copy config files from old version to new version (application.conf, consumer.properties)
+2. Change start script to use bin/cmak instead of bin/kafka-manager
+

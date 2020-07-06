@@ -5,7 +5,7 @@
 name := """cmak"""
 
 /* For packaging purposes, -SNAPSHOT MUST contain a digit */
-version := "3.0.0.4"
+version := "3.0.0.5"
 
 scalaVersion := "2.12.10"
 
@@ -135,5 +135,10 @@ rpmVendor := "yahoo"
 rpmUrl := Some("https://github.com/yahoo/cmak")
 rpmLicense := Some("Apache")
 rpmGroup := Some("cmak")
+
+import RpmConstants._
+maintainerScripts in Rpm := maintainerScriptsAppend((maintainerScripts in Rpm).value)(
+   Pre -> "%define _binary_payload w9.xzdio"
+)
 
 /* End RPM Settings */
